@@ -1,0 +1,7 @@
+node_modules
+dist
+.idea
+.venv
+.junie
+.env
+*.local
