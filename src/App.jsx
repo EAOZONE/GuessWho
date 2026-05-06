@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { characters } from './characters';
 import OpenAI from 'openai';
-import { User, Bot, Send, RefreshCw, CheckCircle2, XCircle, Info, Key, HelpCircle } from 'lucide-react';
+import { User, Bot, Send, RefreshCw, CheckCircle2, XCircle, Info, Key } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
+import GameBoard3D from './components/GameBoard3D';
 import characterImages from './assets/characters.png';
 
 function cn(...inputs) {
@@ -355,89 +355,64 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+    <div className="h-screen bg-slate-900 text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center sticky top-0 z-10">
+      <header className="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-black text-blue-400">GUESS WHO</h1>
+          <h1 className="text-xl font-black text-blue-400">GUESS WHO 3D</h1>
           <div className="h-6 w-px bg-slate-700" />
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">Your Character:</span>
+            <span className="text-slate-400">Your character:</span>
+            <CharacterPortrait row={playerSecretChar.row} col={playerSecretChar.col} size="sm" className="inline-block" />
             <span className="font-bold text-green-400">{playerSecretChar.name}</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {winner && (
             <div className={cn(
-              "px-4 py-1 rounded-full font-bold animate-bounce",
+              "px-4 py-1 rounded-full font-bold animate-bounce text-sm",
               winner === 'player' ? "bg-green-600" : "bg-red-600"
             )}>
-              {winner === 'player' ? "YOU WIN!" : "AI WINS!"}
+              {winner === 'player' ? '🎉 YOU WIN!' : '🤖 AI WINS!'}
             </div>
           )}
-          <button 
+          <button
             onClick={() => setIsGameStarted(false)}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors text-sm"
+            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg transition-colors text-sm"
           >
-            <RefreshCw size={16} /> New Game
+            <RefreshCw size={15} /> New Game
           </button>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left: Player Board */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-900">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
-            {playerBoard.map(char => (
-              <div
-                key={char.id}
-                onClick={() => toggleEliminate(char.id)}
-                className={cn(
-                  "relative cursor-pointer transition-all duration-300 rounded-xl overflow-hidden border-2",
-                  char.eliminated 
-                    ? "bg-slate-800/50 border-slate-800 grayscale opacity-40 scale-95" 
-                    : "bg-slate-800 border-slate-700 hover:border-blue-500 shadow-lg"
-                )}
-              >
-                <div className="p-4 flex flex-col items-center">
-                  <CharacterPortrait 
-                    row={char.row} 
-                    col={char.col} 
-                    size="md" 
-                    eliminated={char.eliminated}
-                    className="mb-3"
-                  />
-                  <h3 className="font-bold text-center">{char.name}</h3>
-                  {char.id === playerSecretChar.id && (
-                    <div className="mt-2 text-[10px] bg-green-900/50 text-green-400 px-2 py-0.5 rounded uppercase tracking-wider font-bold">You</div>
-                  )}
-                </div>
-                {char.eliminated && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <XCircle className="text-red-500/50" size={60} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      {/* Main: 3D canvas fills left, chat panel overlaid right */}
+      <main className="flex-1 relative overflow-hidden">
+        {/* 3D game board */}
+        <div className="absolute inset-0">
+          <GameBoard3D
+            characters={characters}
+            playerBoard={playerBoard}
+            secretCharId={playerSecretChar.id}
+            onToggleEliminate={toggleEliminate}
+          />
         </div>
 
-        {/* Right: Chat & Logic */}
-        <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col">
-          {/* Turn Indicator */}
+        {/* Chat & controls panel — overlaid on the right */}
+        <div className="absolute right-0 top-0 bottom-0 w-96 bg-slate-800/90 backdrop-blur-md border-l border-slate-700/80 flex flex-col z-10">
+          {/* Turn indicator */}
           <div className={cn(
-            "p-3 text-center text-sm font-bold uppercase tracking-widest",
-            turn === 'player' ? "bg-blue-600/20 text-blue-400" : 
+            "p-3 text-center text-xs font-bold uppercase tracking-widest shrink-0",
+            turn === 'player' ? "bg-blue-600/20 text-blue-400" :
             turn === 'ai' ? "bg-purple-600/20 text-purple-400" : "bg-green-600/20 text-green-400"
           )}>
-            {winner ? "Game Over" : 
-             turn === 'player' ? "Your Turn: Ask a Question" : 
-             turn === 'ai' ? "AI is Thinking..." : "Answer the AI"}
+            {winner ? "Game Over" :
+             turn === 'player' ? "Your Turn — Ask a Question" :
+             turn === 'ai' ? "AI is Thinking..." : "Answer the AI's Question"}
           </div>
 
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Chat messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg, i) => (
               <div key={i} className={cn(
                 "flex flex-col",
@@ -445,15 +420,15 @@ const App = () => {
               )}>
                 <div className={cn(
                   "max-w-[85%] p-3 rounded-2xl text-sm shadow-md",
-                  msg.role === 'player' ? "bg-blue-600 rounded-tr-none" : 
-                  msg.role === 'ai' ? "bg-slate-700 rounded-tl-none" : 
-                  "bg-slate-900/50 italic text-slate-400 text-center w-full"
+                  msg.role === 'player' ? "bg-blue-600 rounded-tr-none" :
+                  msg.role === 'ai' ? "bg-slate-700 rounded-tl-none" :
+                  "bg-slate-900/50 italic text-slate-400 text-center w-full text-xs"
                 )}>
                   {msg.content}
                 </div>
                 {msg.role !== 'system' && (
                   <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold flex items-center gap-1">
-                    {msg.role === 'player' ? <><User size={10}/> You</> : <><Bot size={10}/> AI</>}
+                    {msg.role === 'player' ? <><User size={10} /> You</> : <><Bot size={10} /> AI</>}
                   </span>
                 )}
               </div>
@@ -468,7 +443,7 @@ const App = () => {
           </div>
 
           {/* Controls */}
-          <div className="p-4 bg-slate-850 border-t border-slate-700">
+          <div className="p-4 border-t border-slate-700 shrink-0">
             {turn === 'player' && !winner ? (
               <form onSubmit={handlePlayerAction} className="flex gap-2">
                 <input
@@ -478,8 +453,8 @@ const App = () => {
                   placeholder="e.g. Do you have glasses?"
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isLoading}
                   className="bg-blue-600 hover:bg-blue-700 p-2 rounded-lg transition-colors disabled:opacity-50"
                 >
@@ -490,21 +465,21 @@ const App = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => answerAi("Yes")}
-                  className="bg-green-600 hover:bg-green-700 py-2 rounded-lg font-bold flex items-center justify-center gap-2"
+                  className="bg-green-600 hover:bg-green-700 py-2 rounded-lg font-bold flex items-center justify-center gap-2 text-sm"
                 >
-                  <CheckCircle2 size={18} /> Yes
+                  <CheckCircle2 size={16} /> Yes
                 </button>
                 <button
                   onClick={() => answerAi("No")}
-                  className="bg-red-600 hover:bg-red-700 py-2 rounded-lg font-bold flex items-center justify-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 py-2 rounded-lg font-bold flex items-center justify-center gap-2 text-sm"
                 >
-                  <XCircle size={18} /> No
+                  <XCircle size={16} /> No
                 </button>
               </div>
             ) : winner ? (
               <button
                 onClick={() => setIsGameStarted(false)}
-                className="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-bold transition-colors"
+                className="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-bold transition-colors text-sm"
               >
                 Play Again
               </button>
@@ -513,11 +488,11 @@ const App = () => {
                 AI is taking its turn...
               </div>
             )}
-            
-            <div className="mt-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-              <Info size={16} className="text-blue-400 mt-0.5 shrink-0" />
-              <p className="text-[11px] text-slate-400 leading-tight">
-                Click on characters to flip them down. Ask traits like hair color, glasses, hats, or facial hair.
+
+            <div className="mt-3 flex items-start gap-2 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+              <Info size={14} className="text-blue-400 mt-0.5 shrink-0" />
+              <p className="text-[10px] text-slate-400 leading-snug">
+                Click a card to flip it. Drag to orbit the board. Scroll to zoom.
               </p>
             </div>
           </div>
